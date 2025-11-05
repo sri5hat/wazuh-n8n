@@ -1,0 +1,195 @@
+# n8n Workflow Steps for Wazuh Integration
+
+This document describes the n8n workflow nodes needed to process Wazuh alerts and generate SOC notifications.
+
+## 1. Webhook Node
+
+**Purpose**: Receives alerts from Wazuh manager.
+
+### Configuration
+```json
+{
+  "httpMethod": "POST",
+  "responseMode": "onReceived",
+  "path": "/webhook-test/filetxt"
+}
+```
+
+**Notes**:
+- No custom code needed for this node
+- The webhook URL will be your n8n instance URL + the path above
+- Test URL: `https://your-n8n-host/webhook/webhook-test/filetxt`
+
+## 2. Extract IOC Node
+
+Purpose: Extract file information and IOC from Wazuh alert.
+
+// Extract syscheck info safely
+const alert = $json.body.full_alert?.syscheck || {};
+
+return [{
+  file_path: alert.path || "N/A",
+  file_hash: alert.sha256_after || alert.md5_after || alert.sha1_after || null,
+  agent_name: $json.body.agent_name,
+  description: $json.body.description,
+  rule_id: $json.body.rule_id,
+  timestamp: $json.body.timestamp
+}];
+
+
+
+3. VirusTotal Node
+
+Purpose: Check file reputation using VirusTotal API.
+
+Configuration:
+
+HTTP Method: GET
+
+URL: https://www.virustotal.com/api/v3/files/{{$json["file_hash"]}}
+
+Authentication: API Key in headers  
+
+{
+  "x-apikey": "YOUR_API_KEY_HERE"
+}
+
+
+
+
+
+4. Generate File Summary Node
+
+Purpose: Merge IOC + VirusTotal results into a clean summary. 
+
+// Step 1: Get file_path from Extract IOC node
+const extractIOC = $("Extract IOC").item;
+const file_path = extractIOC?.json?.file_path || "Unknown";
+
+// Step 2: Merge VirusTotal + IOC data
+
+return $input.all().map(item => {
+  const vtData = item.json;
+  const iocData = item.binary?.Extract_IOC_json
+    ? JSON.parse(item.binary.Extract_IOC_json.data.toString())
+    : (item.json.Extract_IOC || item.json.ioc || item.json || {});
+
+  const file_hash =
+    iocData.file_hash ||
+    vtData.file_hash ||
+    vtData.data?.id ||
+    vtData.attributes?.sha256 ||
+    null;
+
+  const attributes = vtData.data?.attributes || vtData.attributes || {};
+  const vt_stats = attributes.last_analysis_stats || {};
+
+  const malicious_count = vt_stats.malicious || 0;
+  const malicious = malicious_count > 0;
+
+  const sigma = attributes.sigma_analysis_results?.[0] || {};
+  const sigma_rule_title = sigma.rule_title || "No Sigma rule";
+  const sigma_rule_description = sigma.rule_description || "No Sigma description";
+
+  return {
+    json: {
+      file_path,
+      file_hash,
+      agent_name: iocData.agent_name || "Unknown",
+      description: iocData.description || "No description",
+      rule_id: iocData.rule_id || "N/A",
+      vt_stats: {
+        malicious: vt_stats.malicious || 0,
+        suspicious: vt_stats.suspicious || 0,
+        undetected: vt_stats.undetected || 0,
+        harmless: vt_stats.harmless || 0,
+        timeout: vt_stats.timeout || 0
+      },
+      malicious,
+      malicious_count,
+      verdict: malicious ? "MALICIOUS" : "CLEAN",
+      emoji: malicious ? "🚨" : "✅",
+      vt_link: file_hash
+        ? `https://www.virustotal.com/gui/file/${file_hash}/detection`
+        : "N/A",
+      sigma_rule_title,
+      sigma_rule_description,
+      timestamp: new Date().toISOString()
+    }
+  };
+});
+ 
+
+
+
+
+
+
+ 5. HTML Template Node
+
+Purpose: Generate a detailed SOC alert in HTML format. 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>🔔 SOC Threat Alert</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f5f6fa; color: #2d3436; padding: 20px; }
+  .container { background: #ffffff; border-radius: 12px; box-shadow: 0 0 8px rgba(0,0,0,0.1); padding: 20px; max-width: 600px; margin: auto; }
+  h2 { color: #2d3436; text-align: center; border-bottom: 2px solid #0984e3; padding-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 15px; }
+  th, td { padding: 10px; border-bottom: 1px solid #dcdde1; text-align: left; }
+  th { background-color: #0984e3; color: white; }
+  .malicious { color: #d63031; font-weight: bold; }
+  .clean { color: #00b894; font-weight: bold; }
+  a { color: #0984e3; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .footer { text-align: center; font-size: 0.8em; color: #636e72; margin-top: 20px; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h2>🚨 SOC Threat Intelligence Alert</h2>
+    <p>Hello SOC Team,</p>
+    <p>A new file alert has been triggered. Below are the analysis details:</p>
+    <table>
+      <tr><th>File Path</th><td>{{ $json["file_path"] }}</td></tr>
+      <tr><th>File Hash</th><td>{{ $json["file_hash"] }}</td></tr>
+      <tr>
+        <th>Verdict</th>
+        <td class="{{ $json["malicious"] ? "malicious" : "clean" }}">
+          {{ $json["verdict"] }} {{ $json["emoji"] }}
+        </td>
+      </tr>
+      <tr><th>Malicious Detections</th><td>{{ $json["vt_stats"]["malicious"] }}</td></tr>
+      <tr><th>Suspicious</th><td>{{ $json["vt_stats"]["suspicious"] }}</td></tr>
+      <tr><th>Undetected</th><td>{{ $json["vt_stats"]["undetected"] }}</td></tr>
+      <tr><th>VirusTotal Link</th><td><a href="{{ $json["vt_link"] }}">View Report</a></td></tr>
+    </table>
+    <p class="footer">SOC Automated Alert • Generated at {{ $json["timestamp"] }}</p>
+  </div>
+</body>
+</html>
+
+
+
+
+ 
+6. Gmail Notification Node
+
+Purpose: Send SOC alert via email.
+
+Configuration:
+
+Node Type: Gmail → Send Email
+
+Subject: 🚨 SOC Threat Alert
+
+HTML Body: Use the HTML template from previous node
+
+Recipients: SOC team email
+
+message :
+
+ {{$node["HTML"].json["html"]}}
