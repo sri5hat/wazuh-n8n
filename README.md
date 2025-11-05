@@ -9,15 +9,9 @@ Automated SOC workflow integrating **Wazuh**, **n8n**, and **VirusTotal** to mon
 
 ## 📌 Workflow Diagram
 
-## 🎬 Demo Video
+ ## 🎬 Demo Video
 
-<p align="center">
-  <video width="600" controls>
-    <source src="docs/workflow-demo.mp4" type="video/mp4">
-    Your browser does not support the video tag.
-  </video>
-</p>
-
+[Click here to watch the demo video](docs/workflow-demo.mp4)
 
 
 **Workflow Overview:**
