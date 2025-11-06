@@ -1,26 +1,21 @@
-# n8n Workflow Steps for Wazuh Integration
+1. Webhook Node
 
-This document describes the n8n workflow nodes needed to process Wazuh alerts and generate SOC notifications.
+Purpose: Receives alerts from Wazuh manager.
 
-## 1. Webhook Node
+Configuration:
 
-**Purpose**: Receives alerts from Wazuh manager.
+HTTP Method: POST
 
-### Configuration
-```json
-{
-  "httpMethod": "POST",
-  "responseMode": "onReceived",
-  "path": "/webhook-test/filetxt"
-}
-```
+Response Mode: On Received
 
-**Notes**:
-- No custom code needed for this node
-- The webhook URL will be your n8n instance URL + the path above
-- Test URL: `https://your-n8n-host/webhook/webhook-test/filetxt`
+Webhook URL: /webhook-test/filetxt
 
-## 2. Extract IOC Node
+Code: No custom code needed for this node.  
+
+
+
+
+2. Extract IOC Node
 
 Purpose: Extract file information and IOC from Wazuh alert.
 
