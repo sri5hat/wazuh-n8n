@@ -12,6 +12,13 @@ Automated SOC workflow integrating **Wazuh**, **n8n**, and **VirusTotal** to mon
 
 </p>
 
+## Output 
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/c0212693-b71d-4284-92b0-0182fb539978" width="650">
+</p>
+
+
 
 **Workflow Overview:**
 
