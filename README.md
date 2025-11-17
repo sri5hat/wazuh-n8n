@@ -27,11 +27,11 @@ This system enables SOC teams to receive **automated, actionable alerts** for po
 
 ---
 
-⚙️ n8n Workflow Nodes (Detailed Documentation)
+## ⚙️ n8n Workflow Nodes (Detailed Documentation)
 
 This section explains every node used in the Wazuh → n8n → VirusTotal → Gmail workflow, including configuration and code. 
 
-1️⃣ Webhook Node — Receive Wazuh Alerts
+## 1️⃣ Webhook Node — Receive Wazuh Alerts
 
 Purpose:
 Receives alerts directly from the Wazuh Manager.
@@ -45,7 +45,7 @@ Configuration:
 | Webhook URL   | `/webhook-test/filetxt` |
 
 
- 2️⃣ Extract IOC Node — Parse Wazuh IOC Details
+## 2️⃣ Extract IOC Node — Parse Wazuh IOC Details
 
 Purpose:
 Extract file information (path + hash) from Wazuh alert JSON.
@@ -65,7 +65,7 @@ return [{
 }];
 ```
 
-3️⃣ VirusTotal Node — Check File Reputation
+## 3️⃣ VirusTotal Node — Check File Reputation
 
 Purpose:
 Uses VirusTotal API to check the reputation of the file hash.
@@ -84,7 +84,7 @@ Configuration:
   "x-apikey": "YOUR_API_KEY_HERE"
 }
 ```
-4️⃣ Generate File Summary Node — Merge IOC + VT Results
+## 4️⃣ Generate File Summary Node — Merge IOC + VT Results
 
 Purpose:
 Create a structured SOC summary from Wazuh IOC + VirusTotal response.
@@ -147,7 +147,7 @@ return $input.all().map(item => {
   };
 });
 ``` 
-5️⃣ HTML Template Node — Build SOC Email Alert
+## 5️⃣ HTML Template Node — Build SOC Email Alert
 
 Purpose:
 Generate a visually appealing HTML email for SOC analysts.
@@ -197,7 +197,7 @@ HTML Code:
 </body>
 </html>
 ```
-6️⃣ Gmail Notification Node — Send the Alert
+## 6️⃣ Gmail Notification Node — Send the Alert
 
 Purpose:
 Send the HTML SOC report to the security team.
